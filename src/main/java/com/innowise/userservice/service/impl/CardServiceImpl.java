@@ -81,6 +81,7 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
+    @Transactional
     public void changeCardActivity(Long cardId, Boolean isActive) {
         if (!cardRepository.existsById(cardId)) {
             throw new ResourceNotFoundException("Card", "id " + cardId);
