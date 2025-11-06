@@ -1,6 +1,6 @@
 package com.innowise.userservice.exception;
 
-public class CardLimitExceededException extends BussinessException {
+public class CardLimitExceededException extends BusinessException {
 
     public static final int MAX_CARDS = 5;
 
