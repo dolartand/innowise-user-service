@@ -1,5 +1,6 @@
 package com.innowise.userservice.dto.user;
 
+import com.innowise.userservice.dto.card.CardResponseDto;
 import lombok.Builder;
 
 import java.time.LocalDate;

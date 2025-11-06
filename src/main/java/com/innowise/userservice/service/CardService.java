@@ -15,5 +15,5 @@ public interface CardService {
 
     void deleteCard(Long cardId);
 
-    void changeCardActivity(Long cardId, Boolean isActive)
+    void changeCardActivity(Long cardId, Boolean isActive);
 }
