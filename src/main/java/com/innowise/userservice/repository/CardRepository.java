@@ -1,6 +1,7 @@
 package com.innowise.userservice.repository;
 
 import com.innowise.userservice.entity.Card;
+import com.innowise.userservice.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -38,4 +39,6 @@ public interface CardRepository extends JpaRepository<Card,Long> {
     @Modifying
     @Query(value = "UPDATE payment_cards SET active = false WHERE id = :cardId", nativeQuery = true)
     int deactivateCard(@Param("cardId") Long cardId);
+
+    Long user(User user);
 }

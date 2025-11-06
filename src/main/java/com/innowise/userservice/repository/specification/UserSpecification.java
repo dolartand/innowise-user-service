@@ -1,7 +1,6 @@
 package com.innowise.userservice.repository.specification;
 
 import com.innowise.userservice.entity.User;
-import com.innowise.userservice.exception.BussinessException;
 import org.springframework.data.jpa.domain.Specification;
 
 public class UserSpecification {
