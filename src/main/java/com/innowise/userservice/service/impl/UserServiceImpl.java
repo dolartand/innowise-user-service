@@ -10,6 +10,9 @@ import com.innowise.userservice.repository.UserRepository;
 import com.innowise.userservice.repository.specification.UserSpecification;
 import com.innowise.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -24,6 +27,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
 
     @Override
+    @Cacheable(value = "user", key = "#id", unless = "#result == null")
     @Transactional(readOnly = true)
     public UserResponseDto findUserById(Long id) {
         return userRepository.findById(id)
@@ -32,6 +36,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(
+            value = "users",
+            key = "#name + '_' + #surname + '_' + #active + '_' + #pageable.pageNumber + '_' + #pageable.pageSize + '_' + #pageable.sort.toString()",
+            unless = "#result.isEmpty()"
+    )
     @Transactional(readOnly = true)
     public Page<UserResponseDto> findAllUsers(String name, String surname, Boolean active, Pageable pageable) {
         Specification<User> spec = UserSpecification.hasName(name)
@@ -42,6 +51,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CachePut(value = "user", key = "#result.id()")
+    @CacheEvict(value = "users", allEntries = true)
     @Transactional
     public UserResponseDto saveUser(UserRequestDto userRequestDto) {
         if (userRepository.existsByEmail(userRequestDto.email())) {
@@ -53,6 +64,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CachePut(value = "user", key = "#id")
+    @CacheEvict(value = "users", allEntries = true)
     @Transactional
     public UserResponseDto updateUser(Long id, UserRequestDto userRequestDto) {
         User userToUpdate = userRepository.findById(id)
@@ -70,6 +83,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CacheEvict(value = {"user", "users"}, allEntries = true)
     @Transactional
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
@@ -79,6 +93,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CacheEvict(value = {"user", "users"}, allEntries = true)
     @Transactional
     public void changeUserActivity(Long id, Boolean isActive) {
         if (!userRepository.existsById(id)) {
