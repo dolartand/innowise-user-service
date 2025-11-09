@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +29,10 @@ public class CardServiceImpl implements CardService {
     private final UserRepository userRepository;
 
     @Override
-    @CachePut(value = "card", key = "#result.id()")
-    @CacheEvict(value = "cards", key = "#userId")
+    @Caching(evict = {
+            @CacheEvict(value = "userCards", key = "#userId")
+            @CacheEvict(value = "user", key = "#userId")
+    })
     @Transactional
     public CardResponseDto addCardToUser(Long userId, CardRequestDto cardRequestDto) {
         User user = userRepository.findById(userId)
@@ -48,7 +51,7 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    @Cacheable(value = "cards", key = "#userId", unless = "#result.isEmpty()")
+    @Cacheable(value = "cards", key = "#userId")
     @Transactional(readOnly = true)
     public List<CardResponseDto> findCardsByUserId(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -60,8 +63,7 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    @CachePut(value = "card", key = "#result.id()")
-    @CacheEvict(value = "cards", allEntries = true)
+    @CacheEvict(value = "userCards", allEntries = true)
     @Transactional
     public CardResponseDto updateCard(Long cardId, CardRequestDto cardRequestDto) {
         Card cardToUpdate = cardRepository.findById(cardId)
@@ -79,7 +81,10 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    @CacheEvict(value = {"card", "cards"}, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "userCards", allEntries = true),
+            @CacheEvict(value = "user", allEntries = true)
+    })
     @Transactional
     public void deleteCard(Long cardId) {
         if  (!cardRepository.existsById(cardId)) {
@@ -90,7 +95,7 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    @CacheEvict(value = {"card", "cards"}, allEntries = true)
+    @CacheEvict(value = "userCards", allEntries = true)
     @Transactional
     public void changeCardActivity(Long cardId, Boolean isActive) {
         if (!cardRepository.existsById(cardId)) {
