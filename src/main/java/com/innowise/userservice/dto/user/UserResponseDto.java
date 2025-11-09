@@ -3,6 +3,7 @@ package com.innowise.userservice.dto.user;
 import com.innowise.userservice.dto.card.CardResponseDto;
 import lombok.Builder;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,5 +19,5 @@ public record UserResponseDto(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         List<CardResponseDto> cards
-) {
+) implements Serializable {
 }
