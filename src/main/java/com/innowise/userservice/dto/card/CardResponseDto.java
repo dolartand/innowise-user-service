@@ -2,6 +2,7 @@ package com.innowise.userservice.dto.card;
 
 import lombok.Builder;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 @Builder
@@ -11,5 +12,5 @@ public record CardResponseDto(
         String holder,
         LocalDate expirationDate,
         Boolean active
-) {
+) implements Serializable {
 }

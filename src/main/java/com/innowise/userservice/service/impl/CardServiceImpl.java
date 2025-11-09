@@ -30,7 +30,7 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Caching(evict = {
-            @CacheEvict(value = "userCards", key = "#userId")
+            @CacheEvict(value = "userCards", key = "#userId"),
             @CacheEvict(value = "user", key = "#userId")
     })
     @Transactional

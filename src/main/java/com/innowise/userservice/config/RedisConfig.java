@@ -54,7 +54,7 @@ public class RedisConfig {
                         defaultConfig.entryTtl(Duration.ofMinutes(30))) // Кэш для users 30 мин
                 .withCacheConfiguration("user",
                         defaultConfig.entryTtl(Duration.ofMinutes(15))) // Кэш для user 15 мин
-                .withCacheConfiguration("cards",
+                .withCacheConfiguration("userCards",
                         defaultConfig.entryTtl(Duration.ofMinutes(10))) // Кэш для cards 10 мин
                 .build();
     }
