@@ -16,7 +16,7 @@ public record UserRequestDto(
     @Size(min = 3, message = "Surname must be at least 3 characters long")
     String surname,
 
-    @NotBlank(message = "Birth date is required")
+    @NotNull(message = "Birth date is required")
     @Past(message = "Birth date must be in past")
     LocalDate birthDate,
 
