@@ -1,5 +1,6 @@
 package com.innowise.userservice.dto.user;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.innowise.userservice.dto.card.CardResponseDto;
 import lombok.Builder;
 
@@ -8,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 @Builder
 public record UserResponseDto(
         Long id,

@@ -10,7 +10,6 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,10 +21,9 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-@SpringBootTest
 @AutoConfigureMockMvc
 @DisplayName("UserController integration test")
+@Transactional
 public class UserControllerIT extends BaseIntegrationTest {
 
     @Autowired
@@ -66,7 +64,7 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .active(true)
                     .build();
 
-            MvcResult result = mockMvc.perform(post("api/v1/users")
+            MvcResult result = mockMvc.perform(post("/api/v1/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isCreated())
