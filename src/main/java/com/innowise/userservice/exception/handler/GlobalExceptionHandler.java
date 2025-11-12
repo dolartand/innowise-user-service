@@ -2,6 +2,7 @@ package com.innowise.userservice.exception.handler;
 
 import com.innowise.userservice.dto.ErrorResponseDto;
 import com.innowise.userservice.exception.BusinessException;
+import com.innowise.userservice.exception.CardLimitExceededException;
 import com.innowise.userservice.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(errorResponse);
+    }
+
+    @ExceptionHandler(CardLimitExceededException.class)
+    public ResponseEntity<ErrorResponseDto> handleCardLimitExceededException(
+            CardLimitExceededException ex,
+            HttpServletRequest request
+    ) {
+        log.error("Card Limit Exceeded: {}", ex.getMessage());
+
+        ErrorResponseDto errorResponseDto = ErrorResponseDto.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return  ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(errorResponseDto);
     }
 
     @ExceptionHandler(BusinessException.class)
