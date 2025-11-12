@@ -46,10 +46,9 @@ public class CardServiceImpl implements CardService {
         Card newCard = cardMapper.toCard(cardRequestDto);
         user.addCard(newCard);
 
-        userRepository.saveAndFlush(user);
+        User savedUser = userRepository.save(user);
 
-        Card savedCard = cardRepository.findByNumber(newCard.getNumber())
-                .orElseThrow(() -> new IllegalStateException("Card not found after saving"));
+        Card savedCard = savedUser.getCards().getLast();
 
 
         return cardMapper.toCardResponseDto(savedCard);
