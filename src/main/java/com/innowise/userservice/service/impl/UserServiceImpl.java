@@ -83,7 +83,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @CacheEvict(value = {"user", "users"}, allEntries = true)
+    @CacheEvict(value = {"user", "users", "userCards"}, allEntries = true)
     @Transactional
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
