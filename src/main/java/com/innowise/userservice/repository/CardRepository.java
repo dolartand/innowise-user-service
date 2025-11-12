@@ -32,11 +32,11 @@ public interface CardRepository extends JpaRepository<Card,Long> {
 
     // Native sql
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query(value = "UPDATE payment_cards SET active = true WHERE id = :cardId", nativeQuery = true)
     int activateCard(@Param("cardId") Long cardId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query(value = "UPDATE payment_cards SET active = false WHERE id = :cardId", nativeQuery = true)
     int deactivateCard(@Param("cardId") Long cardId);
 
