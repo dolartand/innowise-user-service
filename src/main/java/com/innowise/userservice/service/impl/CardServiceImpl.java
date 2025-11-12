@@ -5,6 +5,7 @@ import com.innowise.userservice.dto.card.CardResponseDto;
 import com.innowise.userservice.entity.Card;
 import com.innowise.userservice.entity.User;
 import com.innowise.userservice.exception.BusinessException;
+import com.innowise.userservice.exception.CardLimitExceededException;
 import com.innowise.userservice.exception.ResourceNotFoundException;
 import com.innowise.userservice.mapper.CardMapper;
 import com.innowise.userservice.repository.CardRepository;
@@ -45,13 +46,17 @@ public class CardServiceImpl implements CardService {
         Card newCard = cardMapper.toCard(cardRequestDto);
         user.addCard(newCard);
 
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
-        return cardMapper.toCardResponseDto(newCard);
+        Card savedCard = cardRepository.findByNumber(newCard.getNumber())
+                .orElseThrow(() -> new IllegalStateException("Card not found after saving"));
+
+
+        return cardMapper.toCardResponseDto(savedCard);
     }
 
     @Override
-    @Cacheable(value = "cards", key = "#userId")
+    @Cacheable(value = "userCards", key = "#userId")
     @Transactional(readOnly = true)
     public List<CardResponseDto> findCardsByUserId(Long userId) {
         if (!userRepository.existsById(userId)) {
