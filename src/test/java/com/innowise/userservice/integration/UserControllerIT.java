@@ -309,6 +309,33 @@ public class UserControllerIT extends BaseIntegrationTest {
         }
     }
 
+    @Nested
+    @DisplayName("Test GET /api/v1/users/by-email/{email}")
+    class GetUserByEmailTests {
+
+        @Test
+        @DisplayName("should return user by email")
+        void shouldGetUserByEmail_Success() throws Exception {
+            User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
+
+            mockMvc.perform(get("/api/v1/users/by-email/{email}", user.getEmail()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(user.getId()))
+                    .andExpect(jsonPath("$.email").value("ivan@example.com"))
+                    .andExpect(jsonPath("$.name").value("Ivan"))
+                    .andExpect(jsonPath("$.surname").value("Ivanov"));
+        }
+
+        @Test
+        @DisplayName("should return 404 when user by email doesnt exists")
+        void shouldReturnNotFound_WhenUserByEmailNotExists() throws Exception {
+            mockMvc.perform(get("/api/v1/users/by-email/{email}", "noone@example.com"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.message").value(Matchers.containsString("User not found")));
+        }
+    }
+
+
     private User createAndSaveUser(String name, String surname, String email) {
         User user = User.builder()
                 .name(name)
