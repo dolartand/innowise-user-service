@@ -107,4 +107,15 @@ public class UserController {
         userService.changeUserActivity(id, isActive);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * Get user by email (for Auth Service)
+     * @param email
+     * @return
+     */
+    @GetMapping("/by-email/{email}")
+    public ResponseEntity<UserResponseDto> getUserByEmail(@PathVariable String email) {
+        UserResponseDto userResponseDto = userService.findUserByEmail(email);
+        return ResponseEntity.ok(userResponseDto);
+    }
 }

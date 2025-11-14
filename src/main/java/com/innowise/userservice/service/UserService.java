@@ -18,4 +18,6 @@ public interface UserService {
     void deleteUser(Long id);
 
     void changeUserActivity(Long id, Boolean isActive);
+
+    UserResponseDto findUserByEmail(String email);
 }

@@ -338,6 +338,48 @@ public class UserServiceImplTest {
         }
     }
 
+    @Nested
+    @DisplayName("findUserByEmail tests")
+    class FindUserByEmailTests {
+
+        @Test
+        @DisplayName("should successfully find user by email")
+        void shouldFindUserByEmail_Success() {
+            String email = "ivan@example.com";
+            Long userId = 1L;
+            User user = createTestUser(userId);
+            UserResponseDto expected = createTestUserResponseDto(userId);
+
+            when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+            when(userMapper.toUserResponseDto(user)).thenReturn(expected);
+
+            UserResponseDto result = userService.findUserByEmail(email);
+
+            assertThat(result).isNotNull();
+            assertThat(result).isEqualTo(expected);
+
+            verify(userRepository, times(1)).findByEmail(email);
+            verify(userMapper, times(1)).toUserResponseDto(user);
+        }
+
+        @Test
+        @DisplayName("should throw ResourceNotFoundException when dont find user by email")
+        void shouldThrowResourceNotFoundException_WhenUserNotFoundByEmail() {
+            String email = "notfound@example.com";
+
+            when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.findUserByEmail(email))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("User")
+                    .hasMessageContaining("email" + email);
+
+            verify(userRepository, times(1)).findByEmail(email);
+            verify(userMapper, never()).toUserResponseDto(any());
+        }
+    }
+
+
     private User createTestUser(Long userId) {
         return User.builder()
                 .id(userId)
