@@ -106,4 +106,13 @@ public class UserServiceImpl implements UserService {
             userRepository.deactivateUser(id);
         }
     }
+
+    @Override
+    @Cacheable(value = "user", key = "#email")
+    @Transactional(readOnly = true)
+    public UserResponseDto findUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(userMapper::toUserResponseDto)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email" + email));
+    }
 }
