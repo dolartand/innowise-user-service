@@ -1,0 +1,13 @@
+target/
+
+*.log
+*.log.*
+
+.idea/
+
+*.iml
+*.ipr
+*.iws
+
+application-local.yml
+.env
