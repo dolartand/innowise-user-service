@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -25,18 +26,19 @@ public class UserController {
     private final UserService userService;
 
     /**
-     * Retrieves a user by id
+     * Retrieves a user by id (user can get only itself)
      * @param id
      * @return user data
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id)  {
         UserResponseDto userResponseDto = userService.findUserById(id);
         return ResponseEntity.ok(userResponseDto);
     }
 
     /**
-     * Getting a list of users with filtering and pagination
+     * Getting a list of users with filtering and pagination (only ADMIN)
      * @param name filter by name
      * @param surname filter by surname
      * @param active filter by active
@@ -44,6 +46,7 @@ public class UserController {
      * @return page with users data
      */
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<UserResponseDto>> getAllUsers(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String surname,
@@ -68,12 +71,13 @@ public class UserController {
     }
 
     /**
-     * Full user data update
+     * Full user data update (user can update only itself)
      * @param id
      * @param userRequestDto new user data
      * @return updated user data
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal")
     public ResponseEntity<UserResponseDto> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UserRequestDto userRequestDto
@@ -83,23 +87,25 @@ public class UserController {
     }
 
     /**
-     * Delete user
+     * Delete user (only ADMIN)
      * @param id
      * @return 204 NO CONTENT
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
     /**
-     * Change user activity status
+     * Change user activity status (only ADMIN)
      * @param id
      * @param isActive new activity status
      * @return 200 OK
      */
     @PatchMapping("/{id}/activity")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> changeUserActivity(
             @PathVariable Long id,
             @RequestParam Boolean isActive
