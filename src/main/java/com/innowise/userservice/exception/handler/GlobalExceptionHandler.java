@@ -3,6 +3,7 @@ package com.innowise.userservice.exception.handler;
 import com.innowise.userservice.dto.ErrorResponseDto;
 import com.innowise.userservice.exception.BusinessException;
 import com.innowise.userservice.exception.CardLimitExceededException;
+import com.innowise.userservice.exception.ForbiddenException;
 import com.innowise.userservice.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -124,6 +125,26 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(errorResponse);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponseDto> handleForbiddenException(
+            ForbiddenException ex,
+            HttpServletRequest request
+    ) {
+        log.error("Forbidden: {}", ex.getMessage());
+
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error(HttpStatus.FORBIDDEN.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
                 .body(errorResponse);
     }
 
