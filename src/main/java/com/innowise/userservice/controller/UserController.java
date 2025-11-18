@@ -58,7 +58,7 @@ public class UserController {
     }
 
     /**
-     * Create new user
+     * Create new user (without security for auth service)
      * @param userRequestDto data for creating user
      * @return created user data
      */
