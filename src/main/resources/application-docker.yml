@@ -53,7 +53,7 @@ server:
 logging:
   level:
     root: INFO
-    com.innowise.userservice: INFO
+    com.innowise.user-service: INFO
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
 

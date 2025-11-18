@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - user-service-network
+      - microservices-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user}"]
       interval: 15s
@@ -27,7 +27,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - user-service-network
+      - microservices-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -41,7 +41,7 @@ services:
       dockerfile: Dockerfile
     container_name: user_service-app
     ports:
-      - "${SERVER_PORT:-8080}:8080"
+      - "${SERVER_PORT:-8081}:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_HOST: postgres
@@ -53,6 +53,10 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
 
+      SERVICE_API_KEY: ${SERVICE_API_KEY:-service-key}
+
+      JWT_SECRET: ${JWT_SECRET:-jwt-secret}
+
       SERVER_PORT: 8080
     depends_on:
       postgres:
@@ -60,7 +64,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - user-service-network
+      - microservices-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health || exit 1"]
@@ -69,8 +73,9 @@ services:
       retries: 5
 
 networks:
-  user-service-network:
+  microservices-network:
     driver: bridge
+    name: microservices-network
 volumes:
   postgres_data:
     driver: local
