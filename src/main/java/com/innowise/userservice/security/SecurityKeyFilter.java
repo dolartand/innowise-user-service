@@ -1,29 +1,48 @@
 package com.innowise.userservice.security;
 
-import jakarta.servlet.*;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
-public class SecurityKeyFilter implements Filter {
+public class SecurityKeyFilter extends OncePerRequestFilter {
 
-    @Value("${service.api.key}")
+    @Value("${service.api.key:service-key}")
     private String expectedKey;
 
+    private static final List<String> EXCLUDED_PATHS = List.of(
+            "/actuator/",
+            "/api/v1/users"
+    );
+
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-        HttpServletRequest httpRequest = (HttpServletRequest) servletRequest;
-        String serviceKey = httpRequest.getHeader("X-Service-Key");
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        String serviceKey = request.getHeader("X-Service-Key");
 
         if (serviceKey == null || !serviceKey.equals(expectedKey)) {
-            ((HttpServletResponse) servletResponse).setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.getWriter().write("Access Denied: Service Key is required");
             return;
         }
+        filterChain.doFilter(request, response);
+    }
 
-        filterChain.doFilter(servletRequest, servletResponse);
+    @Override
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/actuator") || (path.equals("/api/v1/users") && request.getMethod().equals("POST"));
     }
 }
