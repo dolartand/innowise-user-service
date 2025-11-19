@@ -6,10 +6,12 @@ import com.innowise.userservice.entity.Card;
 import com.innowise.userservice.entity.User;
 import com.innowise.userservice.exception.BusinessException;
 import com.innowise.userservice.exception.CardLimitExceededException;
+import com.innowise.userservice.exception.ForbiddenException;
 import com.innowise.userservice.exception.ResourceNotFoundException;
 import com.innowise.userservice.mapper.CardMapper;
 import com.innowise.userservice.repository.CardRepository;
 import com.innowise.userservice.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,14 +19,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -41,8 +46,19 @@ public class CardServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private SecurityContext securityContext;
+
+    @Mock
+    private Authentication authentication;
+
     @InjectMocks
     private CardServiceImpl cardService;
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Nested
     @DisplayName("addCardToUser tests")
@@ -132,11 +148,11 @@ public class CardServiceImplTest {
     }
 
     @Nested
-    @DisplayName("findCardByUserId tests")
+    @DisplayName("findCardsByUserId tests")
     class FindCardByUserIdTests {
 
         @Test
-        @DisplayName("should successfully return list of users cards")
+        @DisplayName("should successfully return list of user's cards")
         void shouldReturnUserCards_Success() {
             Long userId = 1L;
             User user = createTestUser(userId, 3);
@@ -162,8 +178,8 @@ public class CardServiceImplTest {
         }
 
         @Test
-        @DisplayName("should throw ResourceNotFindException when dont find user")
-        void shouldThrowResourceNotFindException_WhenUserNotFound() {
+        @DisplayName("should throw ResourceNotFoundException when user not found")
+        void shouldThrowResourceNotFoundException_WhenUserNotFound() {
             Long userId = 999L;
             when(userRepository.existsById(userId)).thenReturn(false);
 
@@ -181,21 +197,24 @@ public class CardServiceImplTest {
     class UpdateCardTests {
 
         @Test
-        @DisplayName("should successfully update card")
-        void shouldUpdateCard_Success() {
+        @DisplayName("should successfully update card when user is owner")
+        void shouldUpdateCard_WhenUserIsOwner() {
             Long cardId = 1L;
+            Long userId = 1L;
             CardRequestDto requestDto = createTestCardRequestDto();
-            User user = createTestUser(1L, 1);
+            User user = createTestUser(userId, 1);
             Card existingCard = createTestCard(cardId, user);
             Card updatedCard = createTestCard(cardId, user);
             CardResponseDto expected = createTestCardResponseDto(cardId);
+
+            setupSecurityContext(userId, "USER");
 
             when(cardRepository.findById(cardId)).thenReturn(Optional.of(existingCard));
             when(cardRepository.findByNumber(requestDto.number())).thenReturn(Optional.empty());
             when(cardRepository.save(existingCard)).thenReturn(updatedCard);
             when(cardMapper.toCardResponseDto(updatedCard)).thenReturn(expected);
 
-            CardResponseDto result = cardService.updateCard(cardId, requestDto);
+            CardResponseDto result = cardService.updateCard(cardId, requestDto, userId);
 
             assertThat(result).isNotNull();
             assertThat(result.id()).isEqualTo(cardId);
@@ -206,14 +225,67 @@ public class CardServiceImplTest {
         }
 
         @Test
-        @DisplayName("should throw ResourceNotFoundException when dont find card")
+        @DisplayName("should successfully update card when user is admin")
+        void shouldUpdateCard_WhenUserIsAdmin() {
+            Long cardId = 1L;
+            Long cardOwnerId = 1L;
+            Long adminId = 2L;
+            CardRequestDto requestDto = createTestCardRequestDto();
+            User cardOwner = createTestUser(cardOwnerId, 1);
+            Card existingCard = createTestCard(cardId, cardOwner);
+            Card updatedCard = createTestCard(cardId, cardOwner);
+            CardResponseDto expected = createTestCardResponseDto(cardId);
+
+            // Настраиваем SecurityContext для админа
+            setupSecurityContext(adminId, "ADMIN");
+
+            when(cardRepository.findById(cardId)).thenReturn(Optional.of(existingCard));
+            when(cardRepository.findByNumber(requestDto.number())).thenReturn(Optional.empty());
+            when(cardRepository.save(existingCard)).thenReturn(updatedCard);
+            when(cardMapper.toCardResponseDto(updatedCard)).thenReturn(expected);
+
+            CardResponseDto result = cardService.updateCard(cardId, requestDto, adminId);
+
+            assertThat(result).isNotNull();
+            assertThat(result.id()).isEqualTo(cardId);
+
+            verify(cardRepository, times(1)).findById(cardId);
+            verify(cardRepository, times(1)).save(existingCard);
+        }
+
+        @Test
+        @DisplayName("should throw ForbiddenException when user is not owner and not admin")
+        void shouldThrowForbiddenException_WhenUserIsNotOwnerAndNotAdmin() {
+            Long cardId = 1L;
+            Long cardOwnerId = 1L;
+            Long anotherUserId = 2L;
+            CardRequestDto requestDto = createTestCardRequestDto();
+            User cardOwner = createTestUser(cardOwnerId, 1);
+            Card existingCard = createTestCard(cardId, cardOwner);
+
+            // Настраиваем SecurityContext для обычного пользователя (не владельца)
+            setupSecurityContext(anotherUserId, "USER");
+
+            when(cardRepository.findById(cardId)).thenReturn(Optional.of(existingCard));
+
+            assertThatThrownBy(() -> cardService.updateCard(cardId, requestDto, anotherUserId))
+                    .isInstanceOf(ForbiddenException.class)
+                    .hasMessageContaining("You cant update this card");
+
+            verify(cardRepository, times(1)).findById(cardId);
+            verify(cardRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("should throw ResourceNotFoundException when card not found")
         void shouldThrowResourceNotFoundException_WhenCardNotFound() {
             Long cardId = 999L;
+            Long userId = 1L;
             CardRequestDto requestDto = createTestCardRequestDto();
 
             when(cardRepository.findById(cardId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> cardService.updateCard(cardId, requestDto))
+            assertThatThrownBy(() -> cardService.updateCard(cardId, requestDto, userId))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("Card");
 
@@ -226,16 +298,19 @@ public class CardServiceImplTest {
         void  shouldThrowBusinessException_WhenCardNumberTakenByAnotherCard() {
             Long cardId = 1L;
             Long anotherCardId = 2L;
+            Long userId = 1L;
             CardRequestDto requestDto = createTestCardRequestDto();
-            User user = createTestUser(1L, 2);
+            User user = createTestUser(userId, 2);
             Card existingCard = createTestCard(cardId, user);
             Card cardWithSameNumber = createTestCard(anotherCardId, user);
+
+            setupSecurityContext(userId, "USER");
 
             when(cardRepository.findById(cardId)).thenReturn(Optional.of(existingCard));
             when(cardRepository.findByNumber(requestDto.number()))
                     .thenReturn(Optional.of(cardWithSameNumber));
 
-            assertThatThrownBy(() -> cardService.updateCard(cardId, requestDto))
+            assertThatThrownBy(() -> cardService.updateCard(cardId, requestDto, userId))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("already taken");
 
@@ -311,7 +386,7 @@ public class CardServiceImplTest {
         }
 
         @Test
-        @DisplayName("should throw ResourceNotFoundException when card doesnt exists")
+        @DisplayName("should throw ResourceNotFoundException when card doesn't exist")
         void shouldThrowResourceNotFoundException_WhenCardNotFound() {
             Long cardId = 999L;
             when(cardRepository.existsById(cardId)).thenReturn(false);
@@ -325,6 +400,18 @@ public class CardServiceImplTest {
             verify(cardRepository, never()).deactivateCard(any());
         }
     }
+
+    private void setupSecurityContext(Long userId, String role) {
+        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
+
+        lenient().when(authentication.getPrincipal()).thenReturn(userId);
+        lenient().when(authentication.isAuthenticated()).thenReturn(true);
+        lenient().when(authentication.getAuthorities()).thenReturn((Collection) List.of(authority));
+        lenient().when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        SecurityContextHolder.setContext(securityContext);
+    }
+
 
     private User createTestUser(Long id, int numberOfCards) {
         User user = User.builder()
@@ -377,5 +464,4 @@ public class CardServiceImplTest {
                 .active(true)
                 .build();
     }
-
 }

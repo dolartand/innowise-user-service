@@ -6,6 +6,7 @@ import com.innowise.userservice.entity.Card;
 import com.innowise.userservice.entity.User;
 import com.innowise.userservice.exception.BusinessException;
 import com.innowise.userservice.exception.CardLimitExceededException;
+import com.innowise.userservice.exception.ForbiddenException;
 import com.innowise.userservice.exception.ResourceNotFoundException;
 import com.innowise.userservice.mapper.CardMapper;
 import com.innowise.userservice.repository.CardRepository;
@@ -16,6 +17,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,9 +76,11 @@ public class CardServiceImpl implements CardService {
     @Override
     @CacheEvict(value = "userCards", allEntries = true)
     @Transactional
-    public CardResponseDto updateCard(Long cardId, CardRequestDto cardRequestDto) {
+    public CardResponseDto updateCard(Long cardId, CardRequestDto cardRequestDto, Long userId) {
         Card cardToUpdate = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card", "id " + cardId));
+
+        checkCardOwner(cardToUpdate, userId);
 
         cardRepository.findByNumber(cardRequestDto.number()).ifPresent(card -> {
             if (!card.getId().equals(cardId)) {
@@ -115,5 +120,26 @@ public class CardServiceImpl implements CardService {
         } else {
             cardRepository.deactivateCard(cardId);
         }
+    }
+
+    private void checkCardOwner(Card card, Long userId) {
+        if (isAdmin()) {
+            return;
+        }
+
+        if (!card.getUser().getId().equals(userId)) {
+            throw new ForbiddenException("You cant update this card.");
+        }
+    }
+
+    private boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 }

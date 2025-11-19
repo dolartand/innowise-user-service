@@ -9,5 +9,4 @@ target/
 *.ipr
 *.iws
 
-application-local.yml
 .env

@@ -11,7 +11,7 @@ public interface CardService {
 
     List<CardResponseDto> findCardsByUserId(Long userId);
 
-    CardResponseDto updateCard(Long cardId, CardRequestDto cardRequestDto);
+    CardResponseDto updateCard(Long cardId, CardRequestDto cardRequestDto, Long userId);
 
     void deleteCard(Long cardId);
 
