@@ -32,7 +32,7 @@ public class UserServiceImpl implements UserService {
     public UserResponseDto findUserById(Long id) {
         return userRepository.findById(id)
                 .map(userMapper::toUserResponseDto)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id" + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User", String.format("id %d", id)));
     }
 
     @Override
@@ -69,7 +69,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponseDto updateUser(Long id, UserRequestDto userRequestDto) {
         User userToUpdate = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id" + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User", String.format("id %d", id)));
 
         userRepository.findByEmail(userRequestDto.email()).ifPresent(user -> {
             if (!user.getId().equals(id)) {
@@ -87,7 +87,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException("User", "id " + id);
+            throw new ResourceNotFoundException("User", String.format("id %d", id));
         }
         userRepository.deleteById(id);
     }
@@ -97,7 +97,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void changeUserActivity(Long id, Boolean isActive) {
         if (!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException("User", "id " + id);
+            throw new ResourceNotFoundException("User", String.format("id %d", id));
         }
 
         if (isActive) {

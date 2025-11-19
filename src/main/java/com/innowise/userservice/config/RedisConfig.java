@@ -45,17 +45,17 @@ public class RedisConfig {
                 .serializeValuesWith(RedisSerializationContext
                         .SerializationPair.fromSerializer(jackson2JsonRedisSerializer)
                 )
-                .entryTtl(Duration.ofHours(1)) // По умолчанию время жизни кэша 1 час
+                .entryTtl(Duration.ofHours(1)) // By default, ttl 1 hour
                 .disableCachingNullValues();
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withCacheConfiguration("users",
-                        defaultConfig.entryTtl(Duration.ofMinutes(30))) // Кэш для users 30 мин
+                        defaultConfig.entryTtl(Duration.ofMinutes(30))) // Users cache ttl 30 min
                 .withCacheConfiguration("user",
-                        defaultConfig.entryTtl(Duration.ofMinutes(15))) // Кэш для user 15 мин
+                        defaultConfig.entryTtl(Duration.ofMinutes(15))) // User cache ttl 15 min
                 .withCacheConfiguration("userCards",
-                        defaultConfig.entryTtl(Duration.ofMinutes(10))) // Кэш для cards 10 мин
+                        defaultConfig.entryTtl(Duration.ofMinutes(10))) // UserCards cache ttl 10 min
                 .build();
     }
 }

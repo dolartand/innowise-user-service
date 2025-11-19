@@ -44,6 +44,10 @@ public class CardServiceImpl implements CardService {
         });
 
         Card newCard = cardMapper.toCard(cardRequestDto);
+
+        if (user.getCards().size() >= 5) {
+            throw new CardLimitExceededException(user.getId());
+        }
         user.addCard(newCard);
 
         User savedUser = userRepository.save(user);
