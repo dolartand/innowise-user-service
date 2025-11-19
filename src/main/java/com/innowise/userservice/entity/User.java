@@ -59,9 +59,6 @@ public class User {
     private List<Card> cards = new ArrayList<>();
 
     public void addCard(Card card) {
-        if (cards.size() >= 5) {
-            throw new CardLimitExceededException(this.getId());
-        }
         cards.add(card);
         card.setUser(this);
     }

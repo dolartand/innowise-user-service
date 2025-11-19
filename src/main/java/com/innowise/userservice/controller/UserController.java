@@ -100,7 +100,7 @@ public class UserController {
      * @return 200 OK
      */
     @PatchMapping("/{id}/activity")
-    public ResponseEntity<UserResponseDto> changeUserActivity(
+    public ResponseEntity<Void> changeUserActivity(
             @PathVariable Long id,
             @RequestParam Boolean isActive
     ) {
