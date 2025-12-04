@@ -109,6 +109,26 @@ public class GlobalExceptionHandler {
                 .body(errorResponse);
     }
 
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ErrorResponseDto> handleInvalidTokenException(
+            InvalidTokenException ex,
+            HttpServletRequest request
+    ) {
+        log.error("Invalid token: {}", ex.getMessage());
+
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error(HttpStatus.UNAUTHORIZED.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(errorResponse);
+    }
+
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ErrorResponseDto> handleForbiddenException(
             ForbiddenException ex,

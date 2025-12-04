@@ -18,11 +18,6 @@ public class SecurityKeyFilter extends OncePerRequestFilter {
     @Value("${service.api.key:service-key}")
     private String expectedKey;
 
-    private static final List<String> EXCLUDED_PATHS = List.of(
-            "/actuator/",
-            "/api/v1/users"
-    );
-
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
