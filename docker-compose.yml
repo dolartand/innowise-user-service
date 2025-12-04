@@ -44,7 +44,7 @@ services:
       - "${SERVER_PORT:-8081}:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
+      DB_HOST: user_service-db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-userdb}
       DB_USER: ${DB_USER:-user}

@@ -1,5 +1,6 @@
 package com.innowise.userservice.security;
 
+import com.innowise.userservice.exception.InvalidTokenException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,7 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (!jwtTokenProvider.validateToken(token)) {
                 log.debug("Invalid token");
                 filterChain.doFilter(request, response);
-                return;
+                throw new InvalidTokenException("Invalid token");
             }
 
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
@@ -61,6 +62,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             log.debug("Authentication set in SecurityContextHolder: userId = {}, role = {}",  userId, role);
+        } catch (InvalidTokenException ex) {
+            log.error("Invalid token: {}", ex.getMessage());
         } catch (Exception ex) {
             log.error("Cannot set authentication: {}", ex.getMessage());
         }
