@@ -1,6 +1,6 @@
 package com.innowise.userservice.config;
 
-import com.innowise.userservice.security.JwtAuthenticationFilter;
+import com.innowise.userservice.security.HeaderAuthenticationFilter;
 import com.innowise.userservice.security.SecurityKeyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final HeaderAuthenticationFilter headerAuthenticationFilter;
     private final SecurityKeyFilter securityKeyFilter;
 
     @Bean
@@ -30,14 +30,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/v1/users/by-email/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(securityKeyFilter, JwtAuthenticationFilter.class);
+                .addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(securityKeyFilter, HeaderAuthenticationFilter.class);
 
         return http.build();
     }

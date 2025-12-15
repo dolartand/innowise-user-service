@@ -1,6 +1,5 @@
 package com.innowise.userservice.security;
 
-import com.innowise.userservice.exception.InvalidTokenException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,72 +10,68 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
-    private final JwtTokenProvider jwtTokenProvider;
-
+public class HeaderAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        try {
-            String token = extractTokenFromRequest(request);
+        String userId = request.getHeader("X-User-Id");
+        String role = request.getHeader("X-User-Role");
+        String serviceKey = request.getHeader("X-Service-Key");
 
-            if (token == null) {
-                log.debug("No token found in request");
+        if (hasText(userId) && hasText(role)) {
+            try {
+                SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
+
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        Long.parseLong(userId),
+                        null,
+                        Collections.singletonList(authority)
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Authentication set from headers: userId={}, role={}", userId, role);
+            } catch (Exception e) {
+                log.error("Authentication failed: {}", e.getMessage());
                 filterChain.doFilter(request, response);
-                return;
             }
-
-            if (!jwtTokenProvider.validateToken(token)) {
-                log.debug("Invalid token");
-                filterChain.doFilter(request, response);
-                throw new InvalidTokenException("Invalid token");
-            }
-
-            Long userId = jwtTokenProvider.getUserIdFromToken(token);
-            String email = jwtTokenProvider.getEmailFromToken(token);
-            String role = jwtTokenProvider.getRoleFromToken(token);
-
-            SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
-
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userId,
-                    null,
-                    Collections.singletonList(authority)
+        } else if (hasText(serviceKey)) {
+            List<SimpleGrantedAuthority> authorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_SERVICE")
             );
 
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    "SERVICE",
+                    null,
+                    authorities
+            );
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Authentication set in SecurityContextHolder: userId = {}, role = {}",  userId, role);
-        } catch (InvalidTokenException ex) {
-            log.error("Invalid token: {}", ex.getMessage());
-        } catch (Exception ex) {
-            log.error("Cannot set authentication: {}", ex.getMessage());
+            log.debug("Service authentication set for inter-service call: serviceKey={}", serviceKey);
         }
-
         filterChain.doFilter(request, response);
     }
 
-    private String extractTokenFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
+    private boolean hasText(String text) {
+        return text != null && !text.trim().isEmpty();
+    }
 
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
+    @Override
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/actuator") ||
+                (path.equals("/api/v1/users") && request.getMethod().equals("POST")) ||
+                path.startsWith("/api/v1/users/by-email");
     }
 }
