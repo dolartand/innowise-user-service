@@ -6,25 +6,18 @@ import com.innowise.userservice.entity.Card;
 import com.innowise.userservice.entity.User;
 import com.innowise.userservice.repository.CardRepository;
 import com.innowise.userservice.repository.UserRepository;
-import com.innowise.userservice.security.JwtTokenProvider;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.Date;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,9 +44,6 @@ public class CardControllerIT extends BaseIntegrationTest {
     @Autowired
     private CacheManager cacheManager;
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-
     @BeforeEach
     void setUp() {
         cardRepository.deleteAll();
@@ -76,10 +66,12 @@ public class CardControllerIT extends BaseIntegrationTest {
         void shouldAddCardToUser_WhenAuthenticatedAsOwner() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isCreated())
@@ -99,10 +91,12 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "admin@example.com");
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isCreated())
@@ -115,40 +109,59 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user1 = createAndSaveUser("Ivan", "ivan@example.com");
             User user2 = createAndSaveUser("Petr", "petr@example.com");
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
-            String user1Token = generateToken(user1.getId(), user1.getEmail(), "USER");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user2.getId())
-                            .header("Authorization", "Bearer " + user1Token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user1.getId().toString())
+                            .header("X-User-Email", user1.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isForbidden());
         }
 
         @Test
-        @DisplayName("should return 401 when no authentication provided")
-        void shouldReturn401_WhenNoAuthentication() throws Exception {
+        @DisplayName("should return 403 when no authentication headers provided")
+        void shouldReturn403_WhenNoAuthenticationHeaders() throws Exception {
+            User user = createAndSaveUser("Ivan", "ivan@example.com");
+            CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
+
+            mockMvc. perform(post("/api/v1/users/{userId}/cards", user.getId())
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper. writeValueAsString(requestDto)))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("should return 403 when no service key provided")
+        void shouldReturn403_WhenNoServiceKey() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(requestDto)))
+                            .content(objectMapper. writeValueAsString(requestDto)))
                     .andExpect(status().isForbidden());
         }
 
         @Test
-        @DisplayName("should return 404 when user not found")
-        void shouldReturnNotFound_WhenUserNotExists() throws Exception {
+        @DisplayName("should return 403 when invalid service key provided")
+        void shouldReturn403_WhenInvalidServiceKey() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
-            String token = generateToken(999L, "nonexistent@example.com", "USER");
 
-            mockMvc.perform(post("/api/v1/users/{userId}/cards", 999L)
-                            .header("Authorization", "Bearer " + token)
+            mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
+                            .header("X-Service-Key", "wrong-key")
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.message").value(Matchers.containsString("User not found")));
+                    . andExpect(status().isForbidden());
         }
 
         @Test
@@ -159,10 +172,12 @@ public class CardControllerIT extends BaseIntegrationTest {
             createAndSaveCard(user, cardNumber);
 
             CardRequestDto requestDto = createCardRequestDto(cardNumber);
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isConflict())
@@ -173,7 +188,6 @@ public class CardControllerIT extends BaseIntegrationTest {
         @DisplayName("should return 409 when user has 5 cards")
         void shouldReturnConflict_WhenUserHas5Cards() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             for (int i = 1; i <= 5; i++) {
                 createAndSaveCard(user, String.format("1234-5678-9012-345%d", i));
@@ -182,7 +196,10 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3460");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isConflict())
@@ -193,7 +210,6 @@ public class CardControllerIT extends BaseIntegrationTest {
         @DisplayName("should return 400 when invalid card data")
         void shouldReturnBadRequest_WhenInvalidCardData() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             CardRequestDto requestDto = CardRequestDto.builder()
                     .number("invalid")
@@ -203,7 +219,10 @@ public class CardControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isBadRequest())
@@ -223,10 +242,12 @@ public class CardControllerIT extends BaseIntegrationTest {
             createAndSaveCard(user, "1234-5678-9012-3452");
             createAndSaveCard(user, "1234-5678-9012-3453");
 
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$.length()").value(3));
@@ -239,10 +260,11 @@ public class CardControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "admin@example.com");
             createAndSaveCard(user, "1234-5678-9012-3451");
 
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
-
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + adminToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "ADMIN"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$.length()").value(1));
@@ -255,10 +277,11 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user2 = createAndSaveUser("Petr", "petr@example.com");
             createAndSaveCard(user2, "1234-5678-9012-3451");
 
-            String user1Token = generateToken(user1.getId(), user1.getEmail(), "USER");
-
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user2.getId())
-                            .header("Authorization", "Bearer " + user1Token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user1.getId().toString())
+                            .header("X-User-Email", user1.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isForbidden());
         }
 
@@ -266,10 +289,12 @@ public class CardControllerIT extends BaseIntegrationTest {
         @DisplayName("should return empty list when user has no cards")
         void shouldReturnEmptyList_WhenUserHasNoCards() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$.length()").value(0));
@@ -280,16 +305,21 @@ public class CardControllerIT extends BaseIntegrationTest {
         void shouldUseCache_OnSecondRequest() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk());
 
             cardRepository.deleteById(card.getId());
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(1));
         }
@@ -304,7 +334,6 @@ public class CardControllerIT extends BaseIntegrationTest {
         void shouldUpdateCard_WhenAuthenticatedAsOwner() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             Card existingCard = createAndSaveCard(user, "1234-5678-9012-3456");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             CardRequestDto updateDto = CardRequestDto.builder()
                     .number("1234-5678-9012-3456")
@@ -314,7 +343,10 @@ public class CardControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", existingCard.getId())
-                            .header("Authorization", "Bearer " + token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateDto)))
                     .andExpect(status().isOk())
@@ -333,12 +365,14 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "admin@example.com");
             Card existingCard = createAndSaveCard(user, "1234-5678-9012-3456");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             CardRequestDto updateDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", existingCard.getId())
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateDto)))
                     .andExpect(status().isOk());
@@ -350,12 +384,14 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user1 = createAndSaveUser("Ivan", "ivan@example.com");
             User user2 = createAndSaveUser("Petr", "petr@example.com");
             Card user2Card = createAndSaveCard(user2, "1234-5678-9012-3456");
-            String user1Token = generateToken(user1.getId(), user1.getEmail(), "USER");
 
             CardRequestDto updateDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", user2Card.getId())
-                            .header("Authorization", "Bearer " + user1Token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user1.getId().toString())
+                            .header("X-User-Email", user1.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateDto)))
                     .andExpect(status().isForbidden())
@@ -366,11 +402,13 @@ public class CardControllerIT extends BaseIntegrationTest {
         @DisplayName("should return 404 when card doesn't exist")
         void shouldReturnNotFound_WhenCardDoesNotExist() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
             CardRequestDto updateDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", 999L)
-                            .header("Authorization", "Bearer " + token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateDto)))
                     .andExpect(status().isNotFound());
@@ -387,10 +425,12 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "admin@example.com");
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(delete("/api/v1/cards/{cardId}", card.getId())
-                            .header("Authorization", "Bearer " + adminToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "ADMIN"))
                     .andExpect(status().isNoContent());
 
             assertThat(cardRepository.findById(card.getId())).isEmpty();
@@ -401,10 +441,12 @@ public class CardControllerIT extends BaseIntegrationTest {
         void shouldReturn403_WhenRegularUserTriesToDeleteCard() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
-            String userToken = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(delete("/api/v1/cards/{cardId}", card.getId())
-                            .header("Authorization", "Bearer " + userToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isForbidden());
         }
 
@@ -415,10 +457,12 @@ public class CardControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "admin@example.com");
             Card card1 = createAndSaveCard(user, "1234-5678-9012-3451");
             Card card2 = createAndSaveCard(user, "1234-5678-9012-3452");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + adminToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "ADMIN"))
                     .andExpect(status().isNoContent());
 
             assertThat(cardRepository.findById(card1.getId())).isEmpty();
@@ -439,10 +483,11 @@ public class CardControllerIT extends BaseIntegrationTest {
             card.setActive(false);
             cardRepository.save(card);
 
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
-
             mockMvc.perform(patch("/api/v1/cards/{cardId}/activity", card.getId())
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .param("isActive", "true"))
                     .andExpect(status().isOk());
 
@@ -456,10 +501,12 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "admin@example.com");
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(patch("/api/v1/cards/{cardId}/activity", card.getId())
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .param("isActive", "false"))
                     .andExpect(status().isOk());
 
@@ -472,27 +519,15 @@ public class CardControllerIT extends BaseIntegrationTest {
         void shouldReturn403_WhenRegularUserTriesToChangeCardActivity() throws Exception {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
-            String userToken = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(patch("/api/v1/cards/{cardId}/activity", card.getId())
-                            .header("Authorization", "Bearer " + userToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER")
                             .param("isActive", "false"))
                     .andExpect(status().isForbidden());
         }
-    }
-
-    private String generateToken(Long userId, String email, String role) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-        long expirationTime = 1000 * 60 * 60; // 1 час
-
-        return Jwts.builder()
-                .claim("userId", userId)
-                .claim("email", email)
-                .claim("role", role)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expirationTime))
-                .signWith(key)
-                .compact();
     }
 
     private User createAndSaveUser(String name, String email) {
