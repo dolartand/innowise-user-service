@@ -5,26 +5,24 @@ import com.innowise.userservice.dto.user.UserRequestDto;
 import com.innowise.userservice.dto.user.UserResponseDto;
 import com.innowise.userservice.entity.User;
 import com.innowise.userservice.repository.UserRepository;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
 @DisplayName("UserController integration tests")
@@ -41,9 +39,6 @@ public class UserControllerIT extends BaseIntegrationTest {
 
     @Autowired
     private CacheManager cacheManager;
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
 
     @BeforeEach
     void setUp() {
@@ -72,8 +67,12 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             MvcResult result = mockMvc.perform(post("/api/v1/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", "1")
+                            .header("X-User-Email", "ivan@example.com")
+                            .header("X-User-Role", "USER")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").exists())
                     .andExpect(jsonPath("$.name").value("Ivan"))
@@ -104,6 +103,10 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(post("/api/v1/users")
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", "1")
+                            .header("X-User-Email", "ivan@example.com")
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isBadRequest())
@@ -125,6 +128,10 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(post("/api/v1/users")
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", "1")
+                            .header("X-User-Email", "ivan@example.com")
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(requestDto)))
                     .andExpect(status().isConflict())
@@ -140,10 +147,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         @DisplayName("should return user by id when authenticated as owner")
         void shouldGetUserById_WhenAuthenticatedAsOwner() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(user.getId()))
                     .andExpect(jsonPath("$.name").value("Ivan"))
@@ -156,10 +165,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldGetUserById_WhenAuthenticatedAsAdmin() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + adminToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "ADMIN"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(user.getId()))
                     .andExpect(jsonPath("$.name").value("Ivan"));
@@ -170,29 +181,35 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldReturn403_WhenUserTriesToGetAnotherUserData() throws Exception {
             User user1 = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User user2 = createAndSaveUser("Petr", "Petrov", "petr@example.com");
-            String user1Token = generateToken(user1.getId(), user1.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users/{id}", user2.getId())
-                            .header("Authorization", "Bearer " + user1Token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user1.getId().toString())
+                            .header("X-User-Email", user1.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isForbidden());
         }
 
         @Test
-        @DisplayName("should return 401 when no authentication provided")
+        @DisplayName("should return 401 when no authentication headers provided")
         void shouldReturn401_WhenNoAuthentication() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
-            mockMvc.perform(get("/api/v1/users/{id}", user.getId()))
+            mockMvc.perform(get("/api/v1/users/{id}", user.getId())
+                            .header("X-Service-Key", TEST_SERVICE_KEY))
                     .andExpect(status().isForbidden());
         }
 
         @Test
         @DisplayName("should return 404 when user doesn't exist")
         void shouldReturnNotFound_WhenUserNotExists() throws Exception {
-            String token = generateToken(999L, "nonexistent@example.com", "USER");
+            User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", 999L)
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN"))  // Админ может смотреть любого
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.message").value(Matchers.containsString("User not found")));
         }
@@ -201,16 +218,21 @@ public class UserControllerIT extends BaseIntegrationTest {
         @DisplayName("should use cache on second request")
         void shouldUseCache_OnSecondRequest() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk());
 
             userRepository.deleteById(user.getId());
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.name").value("Ivan"));
 
@@ -232,10 +254,12 @@ public class UserControllerIT extends BaseIntegrationTest {
             createAndSaveUser("Sidor", "Sidorov", "sidor@example.com");
 
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .param("page", "0")
                             .param("size", "2"))
                     .andExpect(status().isOk())
@@ -249,10 +273,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         @DisplayName("should return 403 when regular user tries to get all users")
         void shouldReturn403_WhenRegularUserTriesToGetAllUsers() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-            String userToken = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("Authorization", "Bearer " + userToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isForbidden());
         }
 
@@ -263,10 +289,12 @@ public class UserControllerIT extends BaseIntegrationTest {
             createAndSaveUser("Petr", "Petrov", "petr@example.com");
 
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .param("name", "Ivan"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content").isArray())
@@ -286,10 +314,12 @@ public class UserControllerIT extends BaseIntegrationTest {
             userRepository.save(inactiveUser);
 
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .param("active", "true"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content.length()").value(2))
@@ -305,7 +335,6 @@ public class UserControllerIT extends BaseIntegrationTest {
         @DisplayName("should successfully update user when authenticated as owner")
         void shouldUpdateUser_WhenAuthenticatedAsOwner() throws Exception {
             User existingUser = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-            String token = generateToken(existingUser.getId(), existingUser.getEmail(), "USER");
 
             UserRequestDto updateDto = UserRequestDto.builder()
                     .name("Petr")
@@ -316,7 +345,10 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", existingUser.getId())
-                            .header("Authorization", "Bearer " + token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", existingUser.getId().toString())
+                            .header("X-User-Email", existingUser.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateDto)))
                     .andExpect(status().isOk())
@@ -334,7 +366,6 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldUpdateUser_WhenAuthenticatedAsAdmin() throws Exception {
             User existingUser = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             UserRequestDto updateDto = UserRequestDto.builder()
                     .name("Petr")
@@ -345,7 +376,10 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", existingUser.getId())
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateDto)))
                     .andExpect(status().isOk())
@@ -357,7 +391,6 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldReturn403_WhenUserTriesToUpdateAnotherUser() throws Exception {
             User user1 = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User user2 = createAndSaveUser("Petr", "Petrov", "petr@example.com");
-            String user1Token = generateToken(user1.getId(), user1.getEmail(), "USER");
 
             UserRequestDto updateDto = UserRequestDto.builder()
                     .name("Updated")
@@ -368,7 +401,10 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", user2.getId())
-                            .header("Authorization", "Bearer " + user1Token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user1.getId().toString())
+                            .header("X-User-Email", user1.getEmail())
+                            .header("X-User-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateDto)))
                     .andExpect(status().isForbidden());
@@ -378,10 +414,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         @DisplayName("should clear cache after updating")
         void shouldClearCacheAfterUpdating() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-            String token = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                    .header("Authorization", "Bearer " + token));
+                    .header("X-Service-Key", TEST_SERVICE_KEY)
+                    .header("X-User-Id", user.getId().toString())
+                    .header("X-User-Email", user.getEmail())
+                    .header("X-User-Role", "USER"));
 
             UserRequestDto updateDto = UserRequestDto.builder()
                     .name("Petr")
@@ -392,12 +430,18 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", user.getId())
-                    .header("Authorization", "Bearer " + token)
+                    .header("X-Service-Key", TEST_SERVICE_KEY)
+                    .header("X-User-Id", user.getId().toString())
+                    .header("X-User-Email", user.getEmail())
+                    .header("X-User-Role", "USER")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateDto)));
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.name").value("Petr"));
         }
@@ -412,10 +456,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldDeleteUser_WhenAuthenticatedAsAdmin() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + adminToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN"))
                     .andExpect(status().isNoContent());
 
             assertThat(userRepository.findById(user.getId())).isEmpty();
@@ -426,10 +472,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldReturn403_WhenRegularUserTriesToDeleteUser() throws Exception {
             User user1 = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User user2 = createAndSaveUser("Petr", "Petrov", "petr@example.com");
-            String user1Token = generateToken(user1.getId(), user1.getEmail(), "USER");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user2.getId())
-                            .header("Authorization", "Bearer " + user1Token))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user1.getId().toString())
+                            .header("X-User-Email", user1.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isForbidden());
         }
 
@@ -437,10 +485,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         @DisplayName("should return 403 when user tries to delete themselves")
         void shouldReturn403_WhenUserTriesToDeleteThemselves() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-            String userToken = generateToken(user.getId(), user.getEmail(), "USER");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user.getId())
-                            .header("Authorization", "Bearer " + userToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user.getId().toString())
+                            .header("X-User-Email", user.getEmail())
+                            .header("X-User-Role", "USER"))
                     .andExpect(status().isForbidden());
         }
 
@@ -448,10 +498,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         @DisplayName("should return 404 when user doesnt exist")
         void shouldReturnNotFound_WhenUserDoesNotExist() throws Exception {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(delete("/api/v1/users/{id}", 999L)
-                            .header("Authorization", "Bearer " + adminToken))
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN"))
                     .andExpect(status().isNotFound());
         }
     }
@@ -468,10 +520,12 @@ public class UserControllerIT extends BaseIntegrationTest {
             userRepository.save(user);
 
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(patch("/api/v1/users/{id}/activity", user.getId())
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .param("isActive", "true"))
                     .andExpect(status().isOk());
 
@@ -484,10 +538,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldDeactivateUser_WhenAuthenticatedAsAdmin() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
-            String adminToken = generateToken(admin.getId(), admin.getEmail(), "ADMIN");
 
             mockMvc.perform(patch("/api/v1/users/{id}/activity", user.getId())
-                            .header("Authorization", "Bearer " + adminToken)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", admin.getId().toString())
+                            .header("X-User-Email", admin.getEmail())
+                            .header("X-User-Role", "ADMIN")
                             .param("isActive", "false"))
                     .andExpect(status().isOk());
 
@@ -500,10 +556,12 @@ public class UserControllerIT extends BaseIntegrationTest {
         void shouldReturn403_WhenRegularUserTriesToChangeActivity() throws Exception {
             User user1 = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
             User user2 = createAndSaveUser("Petr", "Petrov", "petr@example.com");
-            String user1Token = generateToken(user1.getId(), user1.getEmail(), "USER");
 
             mockMvc.perform(patch("/api/v1/users/{id}/activity", user2.getId())
-                            .header("Authorization", "Bearer " + user1Token)
+                            .header("X-Service-Key", TEST_SERVICE_KEY)
+                            .header("X-User-Id", user1.getId().toString())
+                            .header("X-User-Email", user1.getEmail())
+                            .header("X-User-Role", "USER")
                             .param("isActive", "false"))
                     .andExpect(status().isForbidden());
         }
@@ -514,11 +572,12 @@ public class UserControllerIT extends BaseIntegrationTest {
     class GetUserByEmailTests {
 
         @Test
-        @DisplayName("should return user by email without authentication")
+        @DisplayName("should return user by email without authentication headers")
         void shouldGetUserByEmail_WithoutAuthentication() throws Exception {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
-            mockMvc.perform(get("/api/v1/users/by-email/{email}", user.getEmail()))
+            mockMvc.perform(get("/api/v1/users/by-email/{email}", user.getEmail())
+                            .header("X-Service-Key", TEST_SERVICE_KEY))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(user.getId()))
                     .andExpect(jsonPath("$.email").value("ivan@example.com"))
@@ -533,20 +592,6 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.message").value(Matchers.containsString("User not found")));
         }
-    }
-
-    private String generateToken(Long userId, String email, String role) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-        long expirationTime = 1000 * 60 * 60;
-
-        return Jwts.builder()
-                .claim("userId", userId)
-                .claim("email", email)
-                .claim("role", role)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expirationTime))
-                .signWith(key)
-                .compact();
     }
 
     private User createAndSaveUser(String name, String surname, String email) {

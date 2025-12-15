@@ -17,6 +17,8 @@ import org.testcontainers.utility.DockerImageName;
 @ExtendWith(MockitoExtension.class)
 public class BaseIntegrationTest {
 
+    public static final String TEST_SERVICE_KEY = "test-service-key";
+
     @Container
     protected static final PostgreSQLContainer<?> postgreSQLContainer =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
@@ -41,5 +43,7 @@ public class BaseIntegrationTest {
         registry.add("spring.data.redis.port", () -> redisContainer.getMappedPort(6379).toString()  );
 
         registry.add("spring.liquibase.enabled", () -> "true");
+
+        registry.add("service.api.key", () -> TEST_SERVICE_KEY);
     }
 }
