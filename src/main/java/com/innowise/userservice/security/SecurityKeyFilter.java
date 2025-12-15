@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 
 @Component
 public class SecurityKeyFilter extends OncePerRequestFilter {
@@ -29,7 +28,8 @@ public class SecurityKeyFilter extends OncePerRequestFilter {
 
         if (serviceKey == null || !serviceKey.equals(expectedKey)) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.getWriter().write("Access Denied: Service Key is required");
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\": \"Access Denied\", \"message\": \"Invalid service key\"}");
             return;
         }
         filterChain.doFilter(request, response);
@@ -38,6 +38,6 @@ public class SecurityKeyFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/actuator") || (path.equals("/api/v1/users") && request.getMethod().equals("POST"));
+        return path.startsWith("/actuator");
     }
 }

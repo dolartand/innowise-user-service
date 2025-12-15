@@ -1,10 +1,7 @@
 package com.innowise.userservice.exception.handler;
 
 import com.innowise.userservice.dto.ErrorResponseDto;
-import com.innowise.userservice.exception.BusinessException;
-import com.innowise.userservice.exception.CardLimitExceededException;
-import com.innowise.userservice.exception.ForbiddenException;
-import com.innowise.userservice.exception.ResourceNotFoundException;
+import com.innowise.userservice.exception.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
