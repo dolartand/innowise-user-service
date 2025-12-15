@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - main
-      - feature/UserService
+      - 'feature/**'
   pull_request:
     branches:
       - main
-      - feature/UserService
 
 env:
   JAVA_VERSION: '21'
@@ -98,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build
-      - code-analisys
+      - code-analysis
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/UserService')
 
     steps:
