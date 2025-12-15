@@ -76,7 +76,7 @@ public class UserServiceImplTest {
             assertThatThrownBy(() -> userService.findUserById(userId))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("User")
-                    .hasMessageContaining("id" + userId);
+                    .hasMessageContaining("id " + userId);
 
             verify(userRepository, times(1)).findById(userId);
             verify(userMapper, never()).toUserResponseDto(any());
