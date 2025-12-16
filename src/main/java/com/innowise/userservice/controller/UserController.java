@@ -31,7 +31,7 @@ public class UserController {
      * @return user data
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SERVICE') or #id == authentication.principal")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id)  {
         UserResponseDto userResponseDto = userService.findUserById(id);
         return ResponseEntity.ok(userResponseDto);
@@ -120,8 +120,8 @@ public class UserController {
      * @param email
      * @return user data
      */
-    @PreAuthorize("hasRole('SERVICE')")
     @GetMapping("/by-email/{email}")
+    @PreAuthorize("hasRole('SERVICE')")
     public ResponseEntity<UserResponseDto> getUserByEmail(@PathVariable String email) {
         UserResponseDto userResponseDto = userService.findUserByEmail(email);
         return ResponseEntity.ok(userResponseDto);

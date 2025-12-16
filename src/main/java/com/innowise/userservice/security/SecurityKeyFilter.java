@@ -37,7 +37,7 @@ public class SecurityKeyFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = request. getRequestURI();
         return path.startsWith("/actuator");
     }
 }
