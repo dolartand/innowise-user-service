@@ -58,20 +58,6 @@ public class UserController {
     }
 
     /**
-     * Create new user
-     * @param userRequestDto data for creating user
-     * @return created user data
-     */
-    @PostMapping
-    @PreAuthorize("hasRole('SERVICE')")
-    public ResponseEntity<UserResponseDto> createUser(@Valid @RequestBody UserRequestDto userRequestDto) {
-        UserResponseDto createdUser = userService.saveUser(userRequestDto);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(createdUser);
-    }
-
-    /**
      * Full user data update (user can update only itself)
      * @param id
      * @param userRequestDto new user data
@@ -88,12 +74,12 @@ public class UserController {
     }
 
     /**
-     * Delete user (only ADMIN or SERVICE)
+     * Delete user (only ADMIN)
      * @param id
      * @return 204 NO CONTENT
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SERVICE')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
@@ -113,17 +99,5 @@ public class UserController {
     ) {
         userService.changeUserActivity(id, isActive);
         return ResponseEntity.ok().build();
-    }
-
-    /**
-     * Get user by email (for Auth Service, requires ROLE_SERVICE)
-     * @param email
-     * @return user data
-     */
-    @GetMapping("/by-email/{email}")
-    @PreAuthorize("hasRole('SERVICE')")
-    public ResponseEntity<UserResponseDto> getUserByEmail(@PathVariable String email) {
-        UserResponseDto userResponseDto = userService.findUserByEmail(email);
-        return ResponseEntity.ok(userResponseDto);
     }
 }

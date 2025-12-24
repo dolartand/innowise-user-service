@@ -29,14 +29,14 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/api/v1/users/by-email/**").permitAll()
+                        .requestMatchers("/internal/**").hasRole("SERVICE")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(securityKeyFilter, HeaderAuthenticationFilter.class);
+                .addFilterBefore(securityKeyFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(headerAuthenticationFilter, SecurityKeyFilter.class);
 
         return http.build();
     }

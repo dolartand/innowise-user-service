@@ -45,21 +45,9 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
                 log.debug("Authentication set from headers: userId={}, role={}", userId, role);
             } catch (Exception e) {
                 log.error("Authentication failed: {}", e.getMessage());
-                filterChain.doFilter(request, response);
             }
-        } else if (hasText(serviceKey)) {
-            List<SimpleGrantedAuthority> authorities = List.of(
-                    new SimpleGrantedAuthority("ROLE_SERVICE")
-            );
-
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    "SERVICE",
-                    null,
-                    authorities
-            );
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Service authentication set for inter-service call: serviceKey={}", serviceKey);
         }
+
         filterChain.doFilter(request, response);
     }
 
@@ -70,6 +58,6 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/actuator");
+        return path.startsWith("/actuator") || path.startsWith("/internal/");
     }
 }
