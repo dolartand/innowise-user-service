@@ -68,7 +68,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER")
@@ -93,7 +92,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -111,7 +109,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user2.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user1.getId().toString())
                             .header("X-User-Email", user1.getEmail())
                             .header("X-User-Role", "USER")
@@ -127,41 +124,9 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc. perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper. writeValueAsString(requestDto)))
                     .andExpect(status().isForbidden());
-        }
-
-        @Test
-        @DisplayName("should return 403 when no service key provided")
-        void shouldReturn403_WhenNoServiceKey() throws Exception {
-            User user = createAndSaveUser("Ivan", "ivan@example.com");
-            CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
-
-            mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-User-Id", user.getId().toString())
-                            .header("X-User-Email", user.getEmail())
-                            .header("X-User-Role", "USER")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper. writeValueAsString(requestDto)))
-                    .andExpect(status().isForbidden());
-        }
-
-        @Test
-        @DisplayName("should return 403 when invalid service key provided")
-        void shouldReturn403_WhenInvalidServiceKey() throws Exception {
-            User user = createAndSaveUser("Ivan", "ivan@example.com");
-            CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3456");
-
-            mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", "wrong-key")
-                            .header("X-User-Id", user.getId().toString())
-                            .header("X-User-Email", user.getEmail())
-                            .header("X-User-Role", "USER")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(requestDto)))
-                    . andExpect(status().isForbidden());
         }
 
         @Test
@@ -174,7 +139,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto requestDto = createCardRequestDto(cardNumber);
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER")
@@ -196,7 +160,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto requestDto = createCardRequestDto("1234-5678-9012-3460");
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER")
@@ -219,7 +182,6 @@ public class CardControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(post("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER")
@@ -244,7 +206,6 @@ public class CardControllerIT extends BaseIntegrationTest {
 
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -261,7 +222,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             createAndSaveCard(user, "1234-5678-9012-3451");
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "ADMIN"))
@@ -278,7 +238,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             createAndSaveCard(user2, "1234-5678-9012-3451");
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user2.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user1.getId().toString())
                             .header("X-User-Email", user1.getEmail())
                             .header("X-User-Role", "USER"))
@@ -291,7 +250,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "ivan@example.com");
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -307,7 +265,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -316,7 +273,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             cardRepository.deleteById(card.getId());
 
             mockMvc.perform(get("/api/v1/users/{userId}/cards", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -343,7 +299,6 @@ public class CardControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", existingCard.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER")
@@ -369,7 +324,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto updateDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", existingCard.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -388,7 +342,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto updateDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", user2Card.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user1.getId().toString())
                             .header("X-User-Email", user1.getEmail())
                             .header("X-User-Role", "USER")
@@ -405,7 +358,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             CardRequestDto updateDto = createCardRequestDto("1234-5678-9012-3456");
 
             mockMvc.perform(put("/api/v1/cards/{cardId}", 999L)
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER")
@@ -427,7 +379,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
 
             mockMvc.perform(delete("/api/v1/cards/{cardId}", card.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "ADMIN"))
@@ -443,7 +394,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
 
             mockMvc.perform(delete("/api/v1/cards/{cardId}", card.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -459,7 +409,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             Card card2 = createAndSaveCard(user, "1234-5678-9012-3452");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "ADMIN"))
@@ -484,7 +433,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             cardRepository.save(card);
 
             mockMvc.perform(patch("/api/v1/cards/{cardId}/activity", card.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -503,7 +451,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
 
             mockMvc.perform(patch("/api/v1/cards/{cardId}/activity", card.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -521,7 +468,6 @@ public class CardControllerIT extends BaseIntegrationTest {
             Card card = createAndSaveCard(user, "1234-5678-9012-3456");
 
             mockMvc.perform(patch("/api/v1/cards/{cardId}/activity", card.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER")

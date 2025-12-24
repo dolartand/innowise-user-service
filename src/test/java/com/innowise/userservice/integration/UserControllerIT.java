@@ -2,7 +2,6 @@ package com.innowise.userservice.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.innowise.userservice.dto.user.UserRequestDto;
-import com.innowise.userservice.dto.user.UserResponseDto;
 import com.innowise.userservice.entity.User;
 import com.innowise.userservice.repository.UserRepository;
 import org.hamcrest.Matchers;
@@ -15,7 +14,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
 
@@ -52,94 +50,6 @@ public class UserControllerIT extends BaseIntegrationTest {
     }
 
     @Nested
-    @DisplayName("Test POST /api/v1/users")
-    class CreateUserTests {
-
-        @Test
-        @DisplayName("should successfully create user")
-        void shouldCreateUser_Success() throws Exception {
-            UserRequestDto requestDto = UserRequestDto.builder()
-                    .name("Ivan")
-                    .surname("Ivanov")
-                    .birthDate(LocalDate.of(2005, 12, 22))
-                    .email("ivan@example.com")
-                    .active(true)
-                    .build();
-
-            MvcResult result = mockMvc.perform(post("/api/v1/users")
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
-                            .header("X-User-Id", "1")
-                            .header("X-User-Email", "ivan@example.com")
-                            .header("X-User-Role", "USER")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(requestDto)))
-                    .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.id").exists())
-                    .andExpect(jsonPath("$.name").value("Ivan"))
-                    .andExpect(jsonPath("$.surname").value("Ivanov"))
-                    .andExpect(jsonPath("$.email").value("ivan@example.com"))
-                    .andExpect(jsonPath("$.active").value(true))
-                    .andExpect(jsonPath("$.createdAt").exists())
-                    .andExpect(jsonPath("$.updatedAt").exists())
-                    .andReturn();
-
-            String responseBody = result.getResponse().getContentAsString();
-            UserResponseDto createdUser = objectMapper.readValue(responseBody, UserResponseDto.class);
-
-            User userInDb = userRepository.findById(createdUser.id()).orElseThrow();
-            assertThat(userInDb.getName()).isEqualTo("Ivan");
-            assertThat(userInDb.getEmail()).isEqualTo("ivan@example.com");
-        }
-
-        @Test
-        @DisplayName("should return 400 when invalid data")
-        void shouldReturn400WhenInvalidData() throws Exception {
-            UserRequestDto requestDto = UserRequestDto.builder()
-                    .name("Iv")
-                    .surname("Ivanov")
-                    .birthDate(LocalDate.of(2005, 12, 22))
-                    .email("invalidEmail")
-                    .active(true)
-                    .build();
-
-            mockMvc.perform(post("/api/v1/users")
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
-                            .header("X-User-Id", "1")
-                            .header("X-User-Email", "ivan@example.com")
-                            .header("X-User-Role", "USER")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(requestDto)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("Validation failed"))
-                    .andExpect(jsonPath("$.validationErrors").isArray());
-        }
-
-        @Test
-        @DisplayName("should return 409 when email exists")
-        void shouldReturn409WhenEmailExists() throws Exception {
-            User existingUser = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-
-            UserRequestDto requestDto = UserRequestDto.builder()
-                    .name("John")
-                    .surname("Doe")
-                    .birthDate(LocalDate.of(2005, 12, 22))
-                    .email("ivan@example.com")
-                    .active(true)
-                    .build();
-
-            mockMvc.perform(post("/api/v1/users")
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
-                            .header("X-User-Id", "1")
-                            .header("X-User-Email", "ivan@example.com")
-                            .header("X-User-Role", "USER")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(requestDto)))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.message").value(Matchers.containsString("already exists")));
-        }
-    }
-
-    @Nested
     @DisplayName("Test GET /api/v1/users/{id}")
     class GetUserByIdTests {
 
@@ -149,7 +59,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -167,7 +76,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "ADMIN"))
@@ -183,7 +91,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user2 = createAndSaveUser("Petr", "Petrov", "petr@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", user2.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user1.getId().toString())
                             .header("X-User-Email", user1.getEmail())
                             .header("X-User-Role", "USER"))
@@ -196,7 +103,7 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY))
+                            )
                     .andExpect(status().isForbidden());
         }
 
@@ -206,7 +113,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", 999L)
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN"))  // Админ может смотреть любого
@@ -220,7 +126,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -229,7 +134,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             userRepository.deleteById(user.getId());
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -256,7 +160,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -275,7 +178,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -291,7 +193,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -316,7 +217,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(get("/api/v1/users")
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -345,7 +245,6 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", existingUser.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", existingUser.getId().toString())
                             .header("X-User-Email", existingUser.getEmail())
                             .header("X-User-Role", "USER")
@@ -376,7 +275,6 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", existingUser.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -401,7 +299,6 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", user2.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user1.getId().toString())
                             .header("X-User-Email", user1.getEmail())
                             .header("X-User-Role", "USER")
@@ -416,7 +313,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                    .header("X-Service-Key", TEST_SERVICE_KEY)
                     .header("X-User-Id", user.getId().toString())
                     .header("X-User-Email", user.getEmail())
                     .header("X-User-Role", "USER"));
@@ -430,7 +326,6 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .build();
 
             mockMvc.perform(put("/api/v1/users/{id}", user.getId())
-                    .header("X-Service-Key", TEST_SERVICE_KEY)
                     .header("X-User-Id", user.getId().toString())
                     .header("X-User-Email", user.getEmail())
                     .header("X-User-Role", "USER")
@@ -438,7 +333,6 @@ public class UserControllerIT extends BaseIntegrationTest {
                     .content(objectMapper.writeValueAsString(updateDto)));
 
             mockMvc.perform(get("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -458,7 +352,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN"))
@@ -474,7 +367,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user2 = createAndSaveUser("Petr", "Petrov", "petr@example.com");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user2.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user1.getId().toString())
                             .header("X-User-Email", user1.getEmail())
                             .header("X-User-Role", "USER"))
@@ -487,7 +379,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
 
             mockMvc.perform(delete("/api/v1/users/{id}", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user.getId().toString())
                             .header("X-User-Email", user.getEmail())
                             .header("X-User-Role", "USER"))
@@ -500,7 +391,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(delete("/api/v1/users/{id}", 999L)
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN"))
@@ -522,7 +412,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(patch("/api/v1/users/{id}/activity", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -540,7 +429,6 @@ public class UserControllerIT extends BaseIntegrationTest {
             User admin = createAndSaveUser("Admin", "Admin", "admin@example.com");
 
             mockMvc.perform(patch("/api/v1/users/{id}/activity", user.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", admin.getId().toString())
                             .header("X-User-Email", admin.getEmail())
                             .header("X-User-Role", "ADMIN")
@@ -558,39 +446,11 @@ public class UserControllerIT extends BaseIntegrationTest {
             User user2 = createAndSaveUser("Petr", "Petrov", "petr@example.com");
 
             mockMvc.perform(patch("/api/v1/users/{id}/activity", user2.getId())
-                            .header("X-Service-Key", TEST_SERVICE_KEY)
                             .header("X-User-Id", user1.getId().toString())
                             .header("X-User-Email", user1.getEmail())
                             .header("X-User-Role", "USER")
                             .param("isActive", "false"))
                     .andExpect(status().isForbidden());
-        }
-    }
-
-    @Nested
-    @DisplayName("Test GET /api/v1/users/by-email/{email}")
-    class GetUserByEmailTests {
-
-        @Test
-        @DisplayName("should return user by email without authentication headers")
-        void shouldGetUserByEmail_WithoutAuthentication() throws Exception {
-            User user = createAndSaveUser("Ivan", "Ivanov", "ivan@example.com");
-
-            mockMvc.perform(get("/api/v1/users/by-email/{email}", user.getEmail())
-                            .header("X-Service-Key", TEST_SERVICE_KEY))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id").value(user.getId()))
-                    .andExpect(jsonPath("$.email").value("ivan@example.com"))
-                    .andExpect(jsonPath("$.name").value("Ivan"))
-                    .andExpect(jsonPath("$.surname").value("Ivanov"));
-        }
-
-        @Test
-        @DisplayName("should return 404 when user by email doesnt exists")
-        void shouldReturnNotFound_WhenUserByEmailNotExists() throws Exception {
-            mockMvc.perform(get("/api/v1/users/by-email/{email}", "noone@example.com"))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.message").value(Matchers.containsString("User not found")));
         }
     }
 
