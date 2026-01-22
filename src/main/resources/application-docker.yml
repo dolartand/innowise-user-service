@@ -51,23 +51,47 @@ server:
   shutdown: graceful
 
 logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "
   level:
     root: INFO
-    com.innowise.user-service: INFO
-    org.springframework.web: WARN
-    org.hibernate.SQL: WARN
+    com.innowise.userservice: INFO
+    feign: WARN
+    io.opentelemetry: WARN
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
       base-path: /actuator
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+    prometheus:
+      access: unrestricted
   health:
     livenessState:
       enabled: true
     readinessState:
       enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+      slo:
+        "[http.server.requests]": 50ms,100ms,200ms,500ms,1s
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector.monitoring.svc.cluster.local:4318}/v1/traces
+    metrics:
+      export:
+        url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector.monitoring.svc.cluster.local:4318}/v1/traces
