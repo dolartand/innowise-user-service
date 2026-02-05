@@ -36,11 +36,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(
-            value = "users",
-            key = "#name + '_' + #surname + '_' + #active + '_' + #pageable.pageNumber + '_' + #pageable.pageSize + '_' + #pageable.sort.toString()",
-            unless = "#result.isEmpty()"
-    )
     @Transactional(readOnly = true)
     public Page<UserResponseDto> findAllUsers(String name, String surname, Boolean active, Pageable pageable) {
         Specification<User> spec = UserSpecification.hasName(name)
@@ -83,7 +78,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @CacheEvict(value = {"user", "users", "userCards"}, allEntries = true)
+    @CacheEvict(value = {"user", "userCards"}, allEntries = true)
     @Transactional
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
@@ -93,7 +88,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @CacheEvict(value = {"user", "users"}, allEntries = true)
+    @CacheEvict(value = "user", allEntries = true)
     @Transactional
     public void changeUserActivity(Long id, Boolean isActive) {
         if (!userRepository.existsById(id)) {
