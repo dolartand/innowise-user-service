@@ -50,8 +50,6 @@ public class RedisConfig {
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
-                .withCacheConfiguration("users",
-                        defaultConfig.entryTtl(Duration.ofMinutes(30))) // Users cache ttl 30 min
                 .withCacheConfiguration("user",
                         defaultConfig.entryTtl(Duration.ofMinutes(15))) // User cache ttl 15 min
                 .withCacheConfiguration("userCards",
